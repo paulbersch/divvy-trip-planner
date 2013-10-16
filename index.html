@@ -1,0 +1,224 @@
+<!doctype html>
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="css/reset.css" />
+    <style>
+        html, body {
+            height: 100%;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+            display: block;
+            background-color: black;
+        }
+    </style>
+</head>
+<body>
+    <div id="map">
+        <!-- google map here -->
+    </div>
+
+    <div id="main-panel">
+    </div>
+
+    <script type="text/x-underscore-template">
+        <!-- template goes here -->
+    </script>
+
+    <!-- JAVASCRIPT -->
+    <!--<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyADgWheMSsjtf5dImgyTt1m1RubS5xeSKo&sensor=false"></script>-->
+    <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?sensor=false"></script>
+    <script type="text/javascript" src="js/underscore.js"></script>
+    <script type="text/javascript" src="js/zepto.js"></script>
+    <script type="text/javascript" src="js/backbone.js"></script>
+
+    <script type="text/javascript">
+
+        var panel = (function() {
+
+            var p = {};
+
+            return p;
+
+        })();
+
+        var util = (function() {
+            var u = {};
+
+            var nauticalMilePerLat = 60.00721,
+                nauticalMilePerLng = 60.10793,
+                milesPerNauticalMile = 1.15078,
+                rad = Math.PI / 180.0;
+
+            // computes the NW and SE corners of a square box that completely
+            // encloses a circle for fast filtering of locations within
+            // a certian radius
+            u.distanceBox = function(lat, lng, radius) {
+                latR = radius / (milesPerNauticalMile * 60.0);
+                lngR = radius / (Math.cos(lat * rad) * milesPerNauticalMile * 60.0);
+
+                return [lat + latR, lng - lngR, lat - latR, lng + lngR];
+            };
+
+            u.boxContainsPoint = function(box, lat, lng) {
+                // assumes order of points is same as returned by util.distanceBox
+                // also only works in NW hemisphere
+                return (lat < box[0] &&
+                        lng > box[1] &&
+                        lat > box[2] &&
+                        lng < box[3]);
+            };
+
+            u.distance = function(lat1, lng1, lat2, lng2) {
+                // convert from degress to radians
+                lat1 = lat1 * rad, lat2 = lat2 * rad, lng1 = lng1 * rad, lng2 = lng2 * rad;
+
+                var R = 3963; // radius of earth in miles
+
+                // the law of cosines
+                // this is faster than haversine and apparently as accurate
+                // now that we live in the future and we have nice floating point numbers
+                // http://www.movable-type.co.uk/scripts/latlong.html
+
+                return Math.acos(Math.sin(lat1) * Math.sin(lat2) + 
+                    Math.cos(lat1) * Math.cos(lat2) *
+                    Math.cos(lng2 - lng1)) * R;
+            };
+
+            u.pointsWithinDistance = function(lat1, lng1, lat2, lng2, distance) {
+                return u.distance(lat1, lng1, lat2, lng2) <= distance;
+            }
+
+            return u;
+
+        })();
+
+        var Stations = (function() {
+
+            var s = {};
+
+            s.Station = Backbone.Model.extend({
+                drawMarker: function(map) {
+                    return new google.maps.Marker({
+                        position: new google.maps.LatLng(this.attributes.latitude, this.attributes.longitude),
+                        map: map
+                    });
+                }
+            });
+
+            s.StationList = Backbone.Collection.extend({
+                url: "divvy.json",
+                model: s.Station,
+                parse: function(response) {
+                    this.executionTime = response.executionTime;
+
+                    return response.stationBeanList;
+                },
+                nearPoint: function(lat, lng, radius) {
+                    var box = util.distanceBox(lat, lng, radius);
+                    var points = _.filter(this.models, function(station) {
+                        return util.boxContainsPoint(box, station.attributes.latitude, station.attributes.longitude) &&
+                            util.pointsWithinDistance(lat, lng, station.attributes.latitude, station.attributes.longitude, radius);
+                    });
+                    return points;
+                }
+            });
+
+            return s
+
+        })(util);
+        var Bikes = (function(panel) { 
+            var map, list, center, geocoder;
+
+            var success = function(a) {
+                console.log("yeah!", a.models, a.models.length);
+                var stations = a.nearPoint(41.90, -87.65, 1);
+                var markers = _.invoke(stations, "drawMarker", map);
+                console.log("yknow", stations, stations.length);
+                console.log("heyyy", markers, markers.length);
+            };
+
+            var mapOptions = {
+                center: new google.maps.LatLng(41.90, -87.65),
+                zoom: 13,
+                mapTypeId: google.maps.MapTypeId.ROADMAP
+            };
+
+            var b = {};
+
+            b.refreshMarkers = function() {
+                if (list === undefined) {
+                    list = new Stations.StationList;
+                }
+
+                list.fetch({
+                    success: success
+                });
+            }
+
+            b.search = function(address) {
+                if (geocoder === undefined) {
+                    geocoder = new google.maps.Geocoder();
+                }
+
+                geocoder.geocode({
+                    'address': address
+                }, function(results, status) {
+                    if (status == google.maps.GeocoderStatus.OK) {
+                        center = results[0].geometry.location;
+                        map.setCenter(center);
+                    }
+                });
+            };
+
+            b.init = function() {
+                map = new google.maps.Map(document.getElementById("map"), mapOptions);
+                b.refreshMarkers();
+            };
+
+            b.test = function() {
+                var box = util.distanceBox(41.90, -87.65, 1);
+                var l = new google.maps.LatLng(41.90, -87.65);
+                var c = new google.maps.Marker({
+                    position: l,
+                    map: map
+                });
+
+                console.log(box);
+                console.log(box[0], box[1], box[2], box[3]);
+
+                var markerA = new google.maps.Marker({
+                    position: new google.maps.LatLng(box[0], box[1]),
+                    map: map
+                });
+
+                var markerB = new google.maps.Marker({
+                    position: new google.maps.LatLng(box[2], box[3]),
+                    map: map
+                });
+
+                /*
+                var markerC = new google.maps.Marker({
+                    position: new google.maps.LatLng(box[0], box[3]),
+                    map: map
+                });
+
+                var markerD = new google.maps.Marker({
+                    position: new google.maps.LatLng(box[2], box[1]),
+                    map: map
+                });
+                */
+
+                console.log(util.distance(box[0], box[1], box[0], box[3]))
+            }
+
+            return b;
+        })(panel, Stations);
+
+        $(document).ready(Bikes.init);
+    </script>
+
+<body>
+</html>
