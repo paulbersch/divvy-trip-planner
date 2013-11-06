@@ -1,10 +1,35 @@
 <!doctype html>
 <html>
 <head>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
     <link rel="stylesheet" type="text/css" href="css/reset.css" />
     <style>
         html, body {
             height: 100%;
+            font-family: sans-serif;
+        }
+
+        button, input[type="submit"] {
+            -webkit-appearance: button;
+        }
+
+        input, select, button {
+            font-size: inherit;
+        }
+
+        #wrapper {
+            font-size: 2em;
+            line-height: 1.5em;
+            position: relative;
+            display: block;
+            overflow:hidden;
+        }
+
+        @media only screen and (max-device-width: 480px) {
+            #wrapper {
+                font-size: 1em;
+                line-height: 1em;
+            }
         }
 
         #map {
@@ -13,18 +38,153 @@
             display: block;
             background-color: black;
         }
+
+        #main-panel {
+            font-size: 1.1em;
+            width: 85%;
+            max-width: 800px;
+            position: absolute;
+            right: 5%;
+            top: 2000px;
+            padding: 10px 10px 55px 10px;
+            margin: 0;
+            border: 1px solid black;
+            border-bottom: none;
+            z-index: 100000;
+            display: block;
+            background-color: white;
+            overflow: hidden;
+            -moz-transition: all .25s; 
+            -webkit-transition: all .25s;  
+            -ms-transition: all .25s;  
+            -o-transition: all .25s;  
+            transition: all .25s;  
+        }
+
+        #loading {
+            position: relative;
+            top: 40%;
+            right: 40%;
+            -moz-transition: opacity 2s linear;
+            -webkit-transition: opacity 2s linear;
+            -ms-transition: opacity 2s linear;
+            -o-transition: opacity 2s linear;
+            transition: opacity 2s linear;
+        }
+
+        span.clear-button:hover {
+            cursor: default;
+        }
+
+        span.clear-button {
+        }
+
+        .panel-form label {
+            display: inline-block;
+            text-align: right;
+            width: 4em;
+        }
+
+        .panel-form select {
+            -webkit-appearance: menulist-button;
+            -moz-appearance: none;
+        }
+
+        .panel-form input[type=text] {
+            width: 7em;
+        }
+
+        #directions-form input[type=text] {
+        }
+
+        .panel-tabs ul {
+            width: 100%;
+        }
+        .panel-tabs li {
+            display: inline-block;
+            width: auto;
+        }
     </style>
+
 </head>
 <body>
-    <div id="map">
-        <!-- google map here -->
+    <div id="wrapper">
+        <div id="map">
+            <div class="loading">Loading...</div>
+            <!-- google map here -->
+        </div>
+
+        <div id="main-panel">
+        </div>
     </div>
 
-    <div id="main-panel">
-    </div>
+    <script type="text/x-underscore-template" id="-tmpl-panel-tabs">
+        <ul class="panel-tabs">
+            <li><a href="#">All Stations</a></li>
+            <li><a href="#directions">Directions</a></li>
+            <li><a href="#search">Search</a></li>
+            <li><a href="#about">About</a></li>
+        </ul>
+    </script>
 
-    <script type="text/x-underscore-template">
-        <!-- template goes here -->
+    <script type="text/x-underscore-template" id="-tmpl-panel-about">
+        <div>
+            <h2>About</h2>
+            <p>A Divvy ride planner made by <a href="http://oc.tl/files/portfolio/">Paul Bersch</a></p>
+        </div>
+    </script>
+
+    <script type="text/x-underscore-template" id="-tmpl-panel-directions-form">
+        <form id="directions-form" class="panel-form" method="GET">
+            <div class="form-row">
+                <label for="directions-start-address">Start:</label>
+                    <input type="text" id="directions-start-address" name="start-address" value="">
+                <select name="start-radius">
+                    <% _.each([.25,.5,1,2,3,4,5,6,7,8], function(x) { %>
+                    <option value="<%=x%>"><%=x%>mi</option>
+                    <% }); %>
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="directions-end-address">End:</label>
+                    <input type="text" id="direction-end-address" name="end-address" value="">
+                <select name="end-radius">
+                    <% _.each([.25,.5,1,2,3,4,5,6,7,8], function(x) { %>
+                    <option value="<%=x%>"><%=x%>mi</option>
+                    <% }); %>
+                </select>
+            </div>
+            <input type="submit" value="Search">
+            <button type="button" class="clear-button">Clear Markers</button>
+        </form>
+    </script>
+
+    <script type="text/x-underscore-template" id="-tmpl-panel-search-form">
+        <form id="radius-search-form" class="panel-form" method="GET">
+            <div class="form-row">
+                <label for="search-start-address">Location:</label>
+                    <input type="text" id="search-start-address" name="address" value="">
+                <select name="radius">
+                    <% _.each([.25,.5,1,2,3,4,5,6,7,8], function(x) { 
+                        if (x == radius) { %>
+                        <option value="<%=x%>" selected><%=x%>mi</option>
+                        <% } else { %>
+                        <option value="<%=x%>"><%=x%>mi</option>
+                        <% }
+                    }); %>
+                </select>
+            </div>
+            <input type="submit" value="Search">
+            <button type="button" class="clear-button">Clear Markers</button>
+        </form>
+    </script>
+
+    <script type="text/x-underscore-template" id="-tmpl-station-infowindow">
+        <div style="overflow: hidden;">
+            <%=stationName%><br />
+            <%=stAddress1%><br />
+            <%=availableDocks%> / <%=totalDocks%><br />
+        </div>
     </script>
 
     <!-- JAVASCRIPT -->
@@ -33,192 +193,6 @@
     <script type="text/javascript" src="js/underscore.js"></script>
     <script type="text/javascript" src="js/zepto.js"></script>
     <script type="text/javascript" src="js/backbone.js"></script>
-
-    <script type="text/javascript">
-
-        var panel = (function() {
-
-            var p = {};
-
-            return p;
-
-        })();
-
-        var util = (function() {
-            var u = {};
-
-            var nauticalMilePerLat = 60.00721,
-                nauticalMilePerLng = 60.10793,
-                milesPerNauticalMile = 1.15078,
-                rad = Math.PI / 180.0;
-
-            // computes the NW and SE corners of a square box that completely
-            // encloses a circle for fast filtering of locations within
-            // a certian radius
-            u.distanceBox = function(lat, lng, radius) {
-                latR = radius / (milesPerNauticalMile * 60.0);
-                lngR = radius / (Math.cos(lat * rad) * milesPerNauticalMile * 60.0);
-
-                return [lat + latR, lng - lngR, lat - latR, lng + lngR];
-            };
-
-            u.boxContainsPoint = function(box, lat, lng) {
-                // assumes order of points is same as returned by util.distanceBox
-                // also only works in NW hemisphere
-                return (lat < box[0] &&
-                        lng > box[1] &&
-                        lat > box[2] &&
-                        lng < box[3]);
-            };
-
-            u.distance = function(lat1, lng1, lat2, lng2) {
-                // convert from degress to radians
-                lat1 = lat1 * rad, lat2 = lat2 * rad, lng1 = lng1 * rad, lng2 = lng2 * rad;
-
-                var R = 3963; // radius of earth in miles
-
-                // the law of cosines
-                // this is faster than haversine and apparently as accurate
-                // now that we live in the future and we have nice floating point numbers
-                // http://www.movable-type.co.uk/scripts/latlong.html
-
-                return Math.acos(Math.sin(lat1) * Math.sin(lat2) + 
-                    Math.cos(lat1) * Math.cos(lat2) *
-                    Math.cos(lng2 - lng1)) * R;
-            };
-
-            u.pointsWithinDistance = function(lat1, lng1, lat2, lng2, distance) {
-                return u.distance(lat1, lng1, lat2, lng2) <= distance;
-            }
-
-            return u;
-
-        })();
-
-        var Stations = (function() {
-
-            var s = {};
-
-            s.Station = Backbone.Model.extend({
-                drawMarker: function(map) {
-                    return new google.maps.Marker({
-                        position: new google.maps.LatLng(this.attributes.latitude, this.attributes.longitude),
-                        map: map
-                    });
-                }
-            });
-
-            s.StationList = Backbone.Collection.extend({
-                url: "divvy.json",
-                model: s.Station,
-                parse: function(response) {
-                    this.executionTime = response.executionTime;
-
-                    return response.stationBeanList;
-                },
-                nearPoint: function(lat, lng, radius) {
-                    var box = util.distanceBox(lat, lng, radius);
-                    var points = _.filter(this.models, function(station) {
-                        return util.boxContainsPoint(box, station.attributes.latitude, station.attributes.longitude) &&
-                            util.pointsWithinDistance(lat, lng, station.attributes.latitude, station.attributes.longitude, radius);
-                    });
-                    return points;
-                }
-            });
-
-            return s
-
-        })(util);
-        var Bikes = (function(panel) { 
-            var map, list, center, geocoder;
-
-            var success = function(a) {
-                console.log("yeah!", a.models, a.models.length);
-                var stations = a.nearPoint(41.90, -87.65, 1);
-                var markers = _.invoke(stations, "drawMarker", map);
-                console.log("yknow", stations, stations.length);
-                console.log("heyyy", markers, markers.length);
-            };
-
-            var mapOptions = {
-                center: new google.maps.LatLng(41.90, -87.65),
-                zoom: 13,
-                mapTypeId: google.maps.MapTypeId.ROADMAP
-            };
-
-            var b = {};
-
-            b.refreshMarkers = function() {
-                if (list === undefined) {
-                    list = new Stations.StationList;
-                }
-
-                list.fetch({
-                    success: success
-                });
-            }
-
-            b.search = function(address) {
-                if (geocoder === undefined) {
-                    geocoder = new google.maps.Geocoder();
-                }
-
-                geocoder.geocode({
-                    'address': address
-                }, function(results, status) {
-                    if (status == google.maps.GeocoderStatus.OK) {
-                        center = results[0].geometry.location;
-                        map.setCenter(center);
-                    }
-                });
-            };
-
-            b.init = function() {
-                map = new google.maps.Map(document.getElementById("map"), mapOptions);
-                b.refreshMarkers();
-            };
-
-            b.test = function() {
-                var box = util.distanceBox(41.90, -87.65, 1);
-                var l = new google.maps.LatLng(41.90, -87.65);
-                var c = new google.maps.Marker({
-                    position: l,
-                    map: map
-                });
-
-                console.log(box);
-                console.log(box[0], box[1], box[2], box[3]);
-
-                var markerA = new google.maps.Marker({
-                    position: new google.maps.LatLng(box[0], box[1]),
-                    map: map
-                });
-
-                var markerB = new google.maps.Marker({
-                    position: new google.maps.LatLng(box[2], box[3]),
-                    map: map
-                });
-
-                /*
-                var markerC = new google.maps.Marker({
-                    position: new google.maps.LatLng(box[0], box[3]),
-                    map: map
-                });
-
-                var markerD = new google.maps.Marker({
-                    position: new google.maps.LatLng(box[2], box[1]),
-                    map: map
-                });
-                */
-
-                console.log(util.distance(box[0], box[1], box[0], box[3]))
-            }
-
-            return b;
-        })(panel, Stations);
-
-        $(document).ready(Bikes.init);
-    </script>
-
+    <script type="text/javascript" src="js/divvy.js"></script>
 <body>
 </html>
