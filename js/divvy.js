@@ -146,7 +146,7 @@ g.fetch({ success: function(c) { console.log(c); }});
 // draw markers and handle map manipulations
 var map = (function(panel) { 
     "use strict";
-    var map, list, geocoder, markers = {};
+    var map, center, list, geocoder, markers = {};
 
     var mapOptions = {
         center: new google.maps.LatLng(41.90, -87.65),
@@ -169,8 +169,12 @@ var map = (function(panel) {
         }
     };
 
+    b.recenter = function() {
+        map.setCenter(center);
+    };
+
     b.drawNearbyStations = function(lat, lng, radius) {
-        var center = new google.maps.LatLng(lat, lng);
+        center = new google.maps.LatLng(lat, lng);
         map.setCenter(center);
 
         // draw a radius circle
@@ -253,22 +257,27 @@ var map = (function(panel) {
 // the control panel
 var panel = (function() {
     "use strict";
-    var templates = {};
+    var templates = {}, recenterTimeout;
 
     var p = {};
 
     p.init = function() {
-        $("#wrapper").css('height', $(window).height());
-        $("#map").css('height', $(window).height());
         templates.searchForm = _.template($('#-tmpl-panel-search-form').html());
         templates.directionsForm = _.template($('#-tmpl-panel-directions-form').html());
         templates.tabs = _.template($('#-tmpl-panel-tabs').html());
         templates.about = _.template($('#-tmpl-panel-about').html());
+        $(window).resize(p.slidePanel);
         return this;
     };
 
     p.slidePanel = function() {
+        $("#map").css('height', $(window).height());
+        $("#wrapper").css('height', $(window).height());
         $('#main-panel').css('top', $(window).height() - $('#main-panel').height() + 50);
+        if (recenterTimeout) {
+            clearTimeout(recenterTimeout);
+        }
+        setTimeout(map.recenter, 300);
     };
 
     p.about = function() {
