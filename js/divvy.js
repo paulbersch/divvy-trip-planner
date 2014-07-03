@@ -87,7 +87,7 @@ var stations = (function() {
     });
 
     s.StationList = Backbone.Collection.extend({
-        url: "divvy.json",
+        url: "/proxy/divvy-api/",
         model: s.Station,
         parse: function(response) {
             this.executionTime = response.executionTime;
@@ -189,6 +189,17 @@ var map = (function(panel) {
             map: map,
             radius: radius * 1609.34 * 1.02 // meters per mile plus a small fudge
         }))
+
+        // show the center of the circle for reference
+        markers['polygons'].push(new google.maps.Marker({
+            position: center,
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 5
+            },
+            title: "Your location",
+            map:map
+        }));
 
         if (list === undefined) {
             list = new stations.StationList;
@@ -349,6 +360,11 @@ var router = (function() {
             'search/mylocation/:radius/': "search_mylocation",
             'search/:address/:radius/': "search",
             'search/:address/:radius': "search",
+            'directions/s2s/:start_station/:end_station/': "directions_s2s",
+            'directions/:start_address/': "directions",
+            'directions/:start_address/:start_station/': "directions",
+            'directions/:start_address/:start_station/:end_address/': "directions",
+            'directions/:start_address/:start_station/:end_address/:end_station/': "directions",
             'directions*pathInfo': "directions",
             'about': "about",
             '*stuff': "default"
@@ -374,9 +390,11 @@ var router = (function() {
                 }, radius);
             });
         },
-        directions: function() {
+        directions: function(sa, ss, ea, es) {
             map.clearMarkers();
-            panel.directionsForm();
+            panel.directionsForm(sa, ss, ea, es);
+            if (sa) { map.search(sa, .5) }
+            if (ea) { map.search(ea, .5) }
         },
         about: function() {
             panel.about();

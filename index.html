@@ -138,7 +138,7 @@
         <form id="directions-form" class="panel-form" method="GET">
             <div class="form-row">
                 <label for="directions-start-address">Start:</label>
-                    <input type="text" id="directions-start-address" name="start-address" value="">
+                <input type="text" id="directions-start-address" name="start-address" value="<%=start_address%>">
                 <select name="start-radius">
                     <% _.each([.25,.5,1,2,3,4,5,6,7,8], function(x) { %>
                     <option value="<%=x%>"><%=x%>mi</option>
@@ -147,7 +147,7 @@
             </div>
             <div class="form-row">
                 <label for="directions-end-address">End:</label>
-                    <input type="text" id="direction-end-address" name="end-address" value="">
+                    <input type="text" id="direction-end-address" name="end-address" value="<%=end_address%>">
                 <select name="end-radius">
                     <% _.each([.25,.5,1,2,3,4,5,6,7,8], function(x) { %>
                     <option value="<%=x%>"><%=x%>mi</option>
@@ -183,13 +183,13 @@
         <div style="overflow: hidden;">
             <%=stationName%><br />
             <%=stAddress1%><br />
-            <%=availableDocks%> / <%=totalDocks%><br />
+            Bikes/Docks/Total: <%=availableBikes%>/<%=availableDocks%>/<%=totalDocks%><br />
         </div>
     </script>
 
     <!-- JAVASCRIPT -->
     <!--<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyADgWheMSsjtf5dImgyTt1m1RubS5xeSKo&sensor=false"></script>-->
-    <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?sensor=false"></script>
+    <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?sensor=true"></script>
     <script type="text/javascript" src="js/underscore.js"></script>
     <script type="text/javascript" src="js/zepto.js"></script>
     <script type="text/javascript" src="js/backbone.js"></script>
